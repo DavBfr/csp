@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -44,12 +44,31 @@ jobs:
             cd dist
             cp ../LICENSE ../README.md ./
             zip -9 csp_${{ matrix.goos }}_${{ matrix.goarch }}.zip csp.exe LICENSE README.md
+            rm LICENSE README.md csp.exe
           else
             go build -trimpath -ldflags "-s -w" -o dist/csp ./
             cd dist
             cp ../LICENSE ../README.md ./
             tar -czf csp_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz csp LICENSE README.md
+            rm LICENSE README.md csp
           fi
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-*
+          merge-multiple: true
+          path: dist
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
