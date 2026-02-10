@@ -10,7 +10,7 @@ import (
 
 // ExtractInlineContent parses an HTML file and extracts inline script and style content
 // Returns scripts, styleTags, styleAttributes, hasEventHandlers, error
-func ExtractInlineContent(filePath string) (scripts []string, styleTags []string, styleAttributes []string, hasEventHandlers bool, err error) {
+func ExtractInlineContent(filePath string, noScripts, noStyles, noInlineStyles, noEventHandlers bool) (scripts []string, styleTags []string, styleAttributes []string, hasEventHandlers bool, err error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, nil, nil, false, fmt.Errorf("failed to open file: %w", err)
@@ -30,7 +30,7 @@ func ExtractInlineContent(filePath string) (scripts []string, styleTags []string
 	var traverse func(*html.Node)
 	traverse = func(n *html.Node) {
 		if n.Type == html.ElementNode {
-			if n.Data == "script" {
+			if n.Data == "script" && !noScripts {
 				// Check if it's an inline script (no src attribute)
 				hasSource := false
 				for _, attr := range n.Attr {
@@ -44,20 +44,20 @@ func ExtractInlineContent(filePath string) (scripts []string, styleTags []string
 					content := extractTextContent(n)
 					scripts = append(scripts, content)
 				}
-			} else if n.Data == "style" {
+			} else if n.Data == "style" && !noStyles {
 				// Extract inline style content
 				content := extractTextContent(n)
 				styleTags = append(styleTags, content)
 			}
 
-			// Extract inline event handler attributes from any element
+			// Extract inline event handler attributes and style attributes from any element
 			for _, attr := range n.Attr {
-				if isEventHandler(attr.Key) {
+				if isEventHandler(attr.Key) && !noEventHandlers {
 					scripts = append(scripts, attr.Val)
 					hasEventHandlers = true
 					continue
 				}
-				if strings.EqualFold(attr.Key, "style") {
+				if strings.EqualFold(attr.Key, "style") && !noInlineStyles {
 					styleAttributes = append(styleAttributes, attr.Val)
 				}
 			}
