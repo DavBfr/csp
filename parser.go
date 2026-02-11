@@ -139,12 +139,13 @@ func ExtractExternalResources(filePath string) (*ExternalResources, error) {
 	}
 
 	resources := &ExternalResources{
-		Scripts:     []ExternalResource{},
-		Stylesheets: []ExternalResource{},
-		Images:      []ExternalResource{},
-		Fonts:       []ExternalResource{},
-		Frames:      []ExternalResource{},
-		Other:       []ExternalResource{},
+		Scripts:      []ExternalResource{},
+		Stylesheets:  []ExternalResource{},
+		Images:       []ExternalResource{},
+		Fonts:        []ExternalResource{},
+		Frames:       []ExternalResource{},
+		Other:        []ExternalResource{},
+		UsesDataURLs: make(map[string]bool),
 	}
 
 	var traverse func(*html.Node)
@@ -202,12 +203,17 @@ func ExtractExternalResources(filePath string) (*ExternalResources, error) {
 				// Look for images
 				for _, attr := range n.Attr {
 					if attr.Key == "src" && attr.Val != "" {
-						domain := ExtractDomain(attr.Val)
-						resources.Images = append(resources.Images, ExternalResource{
-							Type:   "image",
-							URL:    attr.Val,
-							Domain: domain,
-						})
+						// Check for data: URLs
+						if strings.HasPrefix(attr.Val, "data:") {
+							resources.UsesDataURLs["image"] = true
+						} else {
+							domain := ExtractDomain(attr.Val)
+							resources.Images = append(resources.Images, ExternalResource{
+								Type:   "image",
+								URL:    attr.Val,
+								Domain: domain,
+							})
+						}
 					}
 				}
 			case "iframe":
@@ -221,6 +227,12 @@ func ExtractExternalResources(filePath string) (*ExternalResources, error) {
 							Domain: domain,
 						})
 					}
+				}
+			case "style":
+				// Extract CSS content and parse for URLs
+				content := extractTextContent(n)
+				if content != "" {
+					extractCSSURLs(content, resources)
 				}
 			}
 
@@ -268,6 +280,20 @@ func extractCSSURLs(cssContent string, resources *ExternalResources) {
 		urlStr = strings.Trim(urlStr, "\"'")
 
 		if urlStr != "" {
+			// Check for data: URLs
+			if strings.HasPrefix(urlStr, "data:") {
+				// Determine type based on data URL mime type
+				lowerURL := strings.ToLower(urlStr)
+				if strings.HasPrefix(lowerURL, "data:font/") || strings.Contains(lowerURL, "data:application/font") ||
+					strings.Contains(lowerURL, "data:application/x-font") {
+					resources.UsesDataURLs["font"] = true
+				} else if strings.HasPrefix(lowerURL, "data:image/") {
+					resources.UsesDataURLs["image"] = true
+				}
+				start = end + 1
+				continue
+			}
+
 			domain := ExtractDomain(urlStr)
 			// Try to determine if it's a font based on extension
 			lowerURL := strings.ToLower(urlStr)

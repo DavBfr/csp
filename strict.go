@@ -12,6 +12,8 @@ type StrictCSPTemplate struct {
 	ImgSrc          []string
 	FontSrc         []string
 	ConnectSrc      []string
+	ManifestSrc     []string
+	WorkerSrc       []string
 	FrameSrc        []string
 	ObjectSrc       []string
 	MediaSrc        []string
@@ -27,9 +29,11 @@ func GetDefaultStrictTemplate() StrictCSPTemplate {
 		DefaultSrc:      []string{"'none'"},
 		ScriptSrc:       []string{"'self'"},
 		StyleSrc:        []string{"'self'"},
-		ImgSrc:          []string{"'self'", "data:", "https:"},
+		ImgSrc:          []string{"'self'"},
 		FontSrc:         []string{"'self'"},
 		ConnectSrc:      []string{"'self'"},
+		ManifestSrc:     []string{"'self'"},
+		WorkerSrc:       []string{"'self'"},
 		FrameSrc:        []string{"'none'"},
 		ObjectSrc:       []string{"'none'"},
 		MediaSrc:        []string{"'self'"},
@@ -67,6 +71,14 @@ func GenerateStrictCSP(template StrictCSPTemplate) string {
 
 	if len(template.ConnectSrc) > 0 {
 		parts = append(parts, "connect-src "+strings.Join(template.ConnectSrc, " "))
+	}
+
+	if len(template.ManifestSrc) > 0 {
+		parts = append(parts, "manifest-src "+strings.Join(template.ManifestSrc, " "))
+	}
+
+	if len(template.WorkerSrc) > 0 {
+		parts = append(parts, "worker-src "+strings.Join(template.WorkerSrc, " "))
 	}
 
 	if len(template.FrameSrc) > 0 {

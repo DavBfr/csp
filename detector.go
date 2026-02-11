@@ -15,12 +15,13 @@ type ExternalResource struct {
 
 // ExternalResources contains all detected external resources
 type ExternalResources struct {
-	Scripts     []ExternalResource
-	Stylesheets []ExternalResource
-	Images      []ExternalResource
-	Fonts       []ExternalResource
-	Frames      []ExternalResource
-	Other       []ExternalResource
+	Scripts      []ExternalResource
+	Stylesheets  []ExternalResource
+	Images       []ExternalResource
+	Fonts        []ExternalResource
+	Frames       []ExternalResource
+	Other        []ExternalResource
+	UsesDataURLs map[string]bool // Tracks if data: URLs are used for each resource type ("image", "font", "style")
 }
 
 // GetUniqueDomains returns a sorted list of unique domains from all resources
@@ -121,6 +122,32 @@ func ExtractDomain(rawURL string) string {
 // AddExternalResourcesToCSP adds external resource domains to appropriate CSP directives
 func AddExternalResourcesToCSP(cspHeader string, resources *ExternalResources) string {
 	directives := parseCSPDirectives(cspHeader)
+
+	// Add data: to img-src if data URLs are used for images
+	if resources.UsesDataURLs != nil && resources.UsesDataURLs["image"] {
+		if existing, ok := directives["img-src"]; ok {
+			if !strings.Contains(existing, "data:") {
+				directives["img-src"] = appendUniqueDomainsToString(existing, []string{"data:"})
+			}
+		} else if defaultSrc, ok := directives["default-src"]; ok {
+			directives["img-src"] = appendUniqueDomainsToString(defaultSrc, []string{"data:"})
+		} else {
+			directives["img-src"] = "data:"
+		}
+	}
+
+	// Add data: to font-src if data URLs are used for fonts
+	if resources.UsesDataURLs != nil && resources.UsesDataURLs["font"] {
+		if existing, ok := directives["font-src"]; ok {
+			if !strings.Contains(existing, "data:") {
+				directives["font-src"] = appendUniqueDomainsToString(existing, []string{"data:"})
+			}
+		} else if defaultSrc, ok := directives["default-src"]; ok {
+			directives["font-src"] = appendUniqueDomainsToString(defaultSrc, []string{"data:"})
+		} else {
+			directives["font-src"] = "data:"
+		}
+	}
 
 	// Add script-src domains
 	scriptDomains := resources.GetDomainsByType("script")

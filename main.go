@@ -132,12 +132,13 @@ func main() {
 	var allHeuristicResources []HeuristicResource
 	if *includeExternal {
 		allExternalResources = &ExternalResources{
-			Scripts:     []ExternalResource{},
-			Stylesheets: []ExternalResource{},
-			Images:      []ExternalResource{},
-			Fonts:       []ExternalResource{},
-			Frames:      []ExternalResource{},
-			Other:       []ExternalResource{},
+			Scripts:      []ExternalResource{},
+			Stylesheets:  []ExternalResource{},
+			Images:       []ExternalResource{},
+			Fonts:        []ExternalResource{},
+			Frames:       []ExternalResource{},
+			Other:        []ExternalResource{},
+			UsesDataURLs: make(map[string]bool),
 		}
 	}
 
@@ -179,6 +180,12 @@ func main() {
 				allExternalResources.Fonts = append(allExternalResources.Fonts, externalRes.Fonts...)
 				allExternalResources.Frames = append(allExternalResources.Frames, externalRes.Frames...)
 				allExternalResources.Other = append(allExternalResources.Other, externalRes.Other...)
+				// Merge data URL usage flags
+				for resourceType, used := range externalRes.UsesDataURLs {
+					if used {
+						allExternalResources.UsesDataURLs[resourceType] = true
+					}
+				}
 			}
 		}
 

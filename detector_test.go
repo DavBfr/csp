@@ -173,6 +173,82 @@ func TestAppendUniqueDomainsToString(t *testing.T) {
 	}
 }
 
+func TestAddExternalResourcesToCSPWithDataURLs(t *testing.T) {
+	tests := []struct {
+		name           string
+		csp            string
+		usesDataURLs   map[string]bool
+		expectImgData  bool
+		expectFontData bool
+	}{
+		{
+			name:          "add data: to img-src",
+			csp:           "default-src 'none'; img-src 'self';",
+			usesDataURLs:  map[string]bool{"image": true},
+			expectImgData: true,
+		},
+		{
+			name:           "add data: to font-src",
+			csp:            "default-src 'none'; font-src 'self';",
+			usesDataURLs:   map[string]bool{"font": true},
+			expectFontData: true,
+		},
+		{
+			name:           "add data: to both img-src and font-src",
+			csp:            "default-src 'self';",
+			usesDataURLs:   map[string]bool{"image": true, "font": true},
+			expectImgData:  true,
+			expectFontData: true,
+		},
+		{
+			name:          "no data URLs",
+			csp:           "default-src 'self'; img-src 'self';",
+			usesDataURLs:  map[string]bool{},
+			expectImgData: false,
+		},
+		{
+			name:          "data: already present",
+			csp:           "img-src 'self' data:;",
+			usesDataURLs:  map[string]bool{"image": true},
+			expectImgData: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resources := &ExternalResources{
+				UsesDataURLs: tt.usesDataURLs,
+			}
+
+			result := AddExternalResourcesToCSP(tt.csp, resources)
+
+			if tt.expectImgData {
+				if !strings.Contains(result, "img-src") || !strings.Contains(result, "data:") {
+					t.Errorf("Expected img-src with data:, got: %s", result)
+				}
+			}
+
+			if tt.expectFontData {
+				if !strings.Contains(result, "font-src") || !strings.Contains(result, "data:") {
+					t.Errorf("Expected font-src with data:, got: %s", result)
+				}
+			}
+
+			if !tt.expectImgData && strings.Contains(result, "img-src") {
+				if strings.Contains(result, "img-src") && strings.Contains(result, "data:") {
+					// Check if data: is actually in img-src directive
+					directives := parseCSPDirectives(result)
+					if imgSrc, ok := directives["img-src"]; ok {
+						if strings.Contains(imgSrc, "data:") {
+							t.Errorf("img-src should not contain data: when not expected, got: %s", result)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
 // Helper function
 func contains(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsMiddle(s, substr)))

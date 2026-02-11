@@ -17,6 +17,15 @@ func TestGetDefaultStrictTemplate(t *testing.T) {
 	if len(template.ScriptSrc) == 0 || template.ScriptSrc[0] != "'self'" {
 		t.Error("Default template should have script-src 'self'")
 	}
+	if len(template.ImgSrc) == 0 || template.ImgSrc[0] != "'self'" || len(template.ImgSrc) != 1 {
+		t.Error("Default template should have img-src 'self' only")
+	}
+	if len(template.ManifestSrc) == 0 || template.ManifestSrc[0] != "'self'" {
+		t.Error("Default template should have manifest-src 'self'")
+	}
+	if len(template.WorkerSrc) == 0 || template.WorkerSrc[0] != "'self'" {
+		t.Error("Default template should have worker-src 'self'")
+	}
 	if !template.UpgradeInsecure {
 		t.Error("Default template should have upgrade-insecure-requests enabled")
 	}
@@ -24,11 +33,13 @@ func TestGetDefaultStrictTemplate(t *testing.T) {
 
 func TestGenerateStrictCSP(t *testing.T) {
 	template := StrictCSPTemplate{
-		DefaultSrc: []string{"'none'"},
-		ScriptSrc:  []string{"'self'"},
-		StyleSrc:   []string{"'self'"},
-		ImgSrc:     []string{"'self'", "data:"},
-		ObjectSrc:  []string{"'none'"},
+		DefaultSrc:  []string{"'none'"},
+		ScriptSrc:   []string{"'self'"},
+		StyleSrc:    []string{"'self'"},
+		ImgSrc:      []string{"'self'", "data:"},
+		ManifestSrc: []string{"'self'"},
+		WorkerSrc:   []string{"'self'"},
+		ObjectSrc:   []string{"'none'"},
 	}
 
 	csp := GenerateStrictCSP(template)
@@ -45,6 +56,12 @@ func TestGenerateStrictCSP(t *testing.T) {
 	}
 	if !strings.Contains(csp, "img-src 'self' data:") {
 		t.Error("Generated CSP should contain img-src 'self' data:")
+	}
+	if !strings.Contains(csp, "manifest-src 'self'") {
+		t.Error("Generated CSP should contain manifest-src 'self'")
+	}
+	if !strings.Contains(csp, "worker-src 'self'") {
+		t.Error("Generated CSP should contain worker-src 'self'")
 	}
 	if !strings.Contains(csp, "object-src 'none'") {
 		t.Error("Generated CSP should contain object-src 'none'")
