@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -18,6 +19,8 @@ func main() {
 	noEventHandlers := flag.Bool("no-event-handlers", false, "Skip processing inline event handlers (onclick, etc.)")
 	includeExternal := flag.Bool("include-external", false, "Scan for external resources and add domains to CSP directives")
 	generateStrict := flag.Bool("generate-strict", false, "Generate a complete strict CSP from scratch")
+	verbose := flag.Bool("verbose", false, "Show detailed information about hash generation")
+	verboseShort := flag.Bool("v", false, "Show detailed information about hash generation (short)")
 
 	// Custom usage message
 	flag.Usage = func() {
@@ -33,9 +36,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --no-event-handlers index.html about.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --generate-strict index.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --include-external index.html\n")
+		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" -v index.html\n")
 	}
 
 	flag.Parse()
+
+	// Handle verbose flag (either -v or --verbose)
+	verboseEnabled := *verbose || *verboseShort
 
 	// Validate inputs
 	if *cspFlag == "" && !*generateStrict {
@@ -101,11 +108,19 @@ func main() {
 		baseCSP = *cspFlag
 	}
 
+	// Initialize verbose output
+	verboseOut := NewVerboseOutput(verboseEnabled)
+
 	// Collect all script and style hashes from all HTML files
 	var allScriptHashes []string
 	var allStyleTagHashes []string
 	var allStyleAttrHashes []string
 	hasEventHandlers := false
+
+	// Track counts for verbose output
+	totalScripts := 0
+	totalStyleTags := 0
+	totalStyleAttrs := 0
 
 	// Collect external resources if requested
 	var allExternalResources *ExternalResources
@@ -120,7 +135,9 @@ func main() {
 		}
 	}
 
-	for _, filePath := range htmlFiles {
+	for i, filePath := range htmlFiles {
+		verboseOut.PrintProgress(filePath, i+1, len(htmlFiles))
+
 		scripts, styleTags, styleAttrs, hasEvents, err := ExtractInlineContent(filePath, *noScripts, *noStyles, *noInlineStyles, *noEventHandlers)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error parsing %s: %v\n", filePath, err)
@@ -129,6 +146,19 @@ func main() {
 		if hasEvents {
 			hasEventHandlers = true
 		}
+
+		// Count event handlers for verbose output
+		eventHandlerCount := 0
+		if hasEvents {
+			for _, script := range scripts {
+				// Simple heuristic: very short scripts are likely event handlers
+				if len(script) < 200 && !strings.Contains(script, "\n") {
+					eventHandlerCount++
+				}
+			}
+		}
+
+		verboseOut.PrintFileSummary(filePath, len(scripts), len(styleTags), len(styleAttrs), eventHandlerCount)
 
 		// Extract external resources if requested
 		if *includeExternal {
@@ -151,6 +181,14 @@ func main() {
 			for _, script := range scripts {
 				hash := ComputeHash(script, algorithm)
 				allScriptHashes = append(allScriptHashes, hash)
+				totalScripts++
+
+				// Determine if this is an event handler
+				contentType := "script"
+				if len(script) < 200 && !strings.Contains(script, "\n") && hasEvents {
+					contentType = "event-handler"
+				}
+				verboseOut.AddHash(hash, contentType, filePath, script)
 			}
 		}
 
@@ -159,6 +197,8 @@ func main() {
 			for _, style := range styleTags {
 				hash := ComputeHash(style, algorithm)
 				allStyleTagHashes = append(allStyleTagHashes, hash)
+				totalStyleTags++
+				verboseOut.AddHash(hash, "style-tag", filePath, style)
 			}
 		}
 
@@ -167,6 +207,8 @@ func main() {
 			for _, style := range styleAttrs {
 				hash := ComputeHash(style, algorithm)
 				allStyleAttrHashes = append(allStyleAttrHashes, hash)
+				totalStyleAttrs++
+				verboseOut.AddHash(hash, "style-attr", filePath, style)
 			}
 		}
 	}
@@ -175,6 +217,20 @@ func main() {
 	allScriptHashes = removeDuplicates(allScriptHashes)
 	allStyleTagHashes = removeDuplicates(allStyleTagHashes)
 	allStyleAttrHashes = removeDuplicates(allStyleAttrHashes)
+
+	// Print verbose output
+	if verboseEnabled {
+		verboseOut.PrintHashDetails()
+
+		// Print external resources if they were collected
+		if *includeExternal && allExternalResources != nil {
+			verboseOut.SetExternalResources(allExternalResources)
+			verboseOut.PrintExternalResources()
+		}
+
+		verboseOut.PrintSummary(totalScripts, totalStyleTags, totalStyleAttrs,
+			len(allScriptHashes), len(allStyleTagHashes), len(allStyleAttrHashes))
+	}
 
 	// Update CSP header with hashes
 	var updatedCSP string

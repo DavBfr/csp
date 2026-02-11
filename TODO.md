@@ -22,10 +22,10 @@
 
 ### Verbose Mode
 
-- [ ] Add `-v` or `--verbose` flag
-- [ ] Show which file each hash came from
-- [ ] Display content snippet for each hash
-- [ ] Show processing progress for multiple files
+- [x] Add `-v` or `--verbose` flag
+- [x] Show which file each hash came from
+- [x] Display content snippet for each hash
+- [x] Show processing progress for multiple files
 
 ## Medium Priority Features
 
