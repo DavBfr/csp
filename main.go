@@ -7,7 +7,49 @@ import (
 	"strings"
 )
 
+// CSPModificationList implements flag.Value to collect CSP modifications in order
+type CSPModificationList struct {
+	modifications []CSPModification
+}
+
+func (cml *CSPModificationList) String() string {
+	return fmt.Sprintf("%v", cml.modifications)
+}
+
+func (cml *CSPModificationList) Set(value string) error {
+	// value is in format "directive:value", we extract the directive from the flag name
+	cml.modifications = append(cml.modifications, CSPModification{Value: value})
+	return nil
+}
+
+// DirectiveModification creates a flag type for a specific directive and action
+func DirectiveModification(directive, action string) flag.Value {
+	return &directiveFlag{directive: directive, action: action, modifications: &[]CSPModification{}}
+}
+
+type directiveFlag struct {
+	directive     string
+	action        string
+	modifications *[]CSPModification
+}
+
+func (df *directiveFlag) String() string {
+	return ""
+}
+
+func (df *directiveFlag) Set(value string) error {
+	*df.modifications = append(*df.modifications, CSPModification{
+		Action:    df.action,
+		Directive: df.directive,
+		Value:     value,
+	})
+	return nil
+}
+
 func main() {
+	// Shared modifications list for all add/remove flags
+	var modifications []CSPModification
+
 	// Define command-line flags
 	cspFlag := flag.String("csp", "", "Existing CSP header to update with hashes (optional, defaults to --generate-strict)")
 	hashAlgo := flag.String("hash-algo", "sha256", "Hash algorithm to use: sha256, sha384, or sha512")
@@ -23,6 +65,66 @@ func main() {
 	requireTrustedTypes := flag.Bool("require-trusted-types", false, "Add require-trusted-types-for 'script' directive (requires Trusted Types API support)")
 	verbose := flag.Bool("verbose", false, "Show detailed information about hash generation")
 	verboseShort := flag.Bool("v", false, "Show detailed information about hash generation (short)")
+
+	// Create shared modifications list for add/remove directives
+	addScriptSrc := &directiveFlag{directive: "script-src", action: "add", modifications: &modifications}
+	removeScriptSrc := &directiveFlag{directive: "script-src", action: "remove", modifications: &modifications}
+	addStyleSrc := &directiveFlag{directive: "style-src", action: "add", modifications: &modifications}
+	removeStyleSrc := &directiveFlag{directive: "style-src", action: "remove", modifications: &modifications}
+	addImgSrc := &directiveFlag{directive: "img-src", action: "add", modifications: &modifications}
+	removeImgSrc := &directiveFlag{directive: "img-src", action: "remove", modifications: &modifications}
+	addFontSrc := &directiveFlag{directive: "font-src", action: "add", modifications: &modifications}
+	removeFontSrc := &directiveFlag{directive: "font-src", action: "remove", modifications: &modifications}
+	addConnectSrc := &directiveFlag{directive: "connect-src", action: "add", modifications: &modifications}
+	removeConnectSrc := &directiveFlag{directive: "connect-src", action: "remove", modifications: &modifications}
+	addManifestSrc := &directiveFlag{directive: "manifest-src", action: "add", modifications: &modifications}
+	removeManifestSrc := &directiveFlag{directive: "manifest-src", action: "remove", modifications: &modifications}
+	addWorkerSrc := &directiveFlag{directive: "worker-src", action: "add", modifications: &modifications}
+	removeWorkerSrc := &directiveFlag{directive: "worker-src", action: "remove", modifications: &modifications}
+	addFrameSrc := &directiveFlag{directive: "frame-src", action: "add", modifications: &modifications}
+	removeFrameSrc := &directiveFlag{directive: "frame-src", action: "remove", modifications: &modifications}
+	addDefaultSrc := &directiveFlag{directive: "default-src", action: "add", modifications: &modifications}
+	removeDefaultSrc := &directiveFlag{directive: "default-src", action: "remove", modifications: &modifications}
+	addObjectSrc := &directiveFlag{directive: "object-src", action: "add", modifications: &modifications}
+	removeObjectSrc := &directiveFlag{directive: "object-src", action: "remove", modifications: &modifications}
+	addMediaSrc := &directiveFlag{directive: "media-src", action: "add", modifications: &modifications}
+	removeMediaSrc := &directiveFlag{directive: "media-src", action: "remove", modifications: &modifications}
+	addBaseURI := &directiveFlag{directive: "base-uri", action: "add", modifications: &modifications}
+	removeBaseURI := &directiveFlag{directive: "base-uri", action: "remove", modifications: &modifications}
+	addFormAction := &directiveFlag{directive: "form-action", action: "add", modifications: &modifications}
+	removeFormAction := &directiveFlag{directive: "form-action", action: "remove", modifications: &modifications}
+	addFrameAncestors := &directiveFlag{directive: "frame-ancestors", action: "add", modifications: &modifications}
+	removeFrameAncestors := &directiveFlag{directive: "frame-ancestors", action: "remove", modifications: &modifications}
+
+	// Register add/remove flags
+	flag.Var(addScriptSrc, "add-script-src", "Add value to script-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeScriptSrc, "remove-script-src", "Remove value from script-src directive (can be repeated, evaluated in order)")
+	flag.Var(addStyleSrc, "add-style-src", "Add value to style-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeStyleSrc, "remove-style-src", "Remove value from style-src directive (can be repeated, evaluated in order)")
+	flag.Var(addImgSrc, "add-img-src", "Add value to img-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeImgSrc, "remove-img-src", "Remove value from img-src directive (can be repeated, evaluated in order)")
+	flag.Var(addFontSrc, "add-font-src", "Add value to font-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeFontSrc, "remove-font-src", "Remove value from font-src directive (can be repeated, evaluated in order)")
+	flag.Var(addConnectSrc, "add-connect-src", "Add value to connect-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeConnectSrc, "remove-connect-src", "Remove value from connect-src directive (can be repeated, evaluated in order)")
+	flag.Var(addManifestSrc, "add-manifest-src", "Add value to manifest-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeManifestSrc, "remove-manifest-src", "Remove value from manifest-src directive (can be repeated, evaluated in order)")
+	flag.Var(addWorkerSrc, "add-worker-src", "Add value to worker-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeWorkerSrc, "remove-worker-src", "Remove value from worker-src directive (can be repeated, evaluated in order)")
+	flag.Var(addFrameSrc, "add-frame-src", "Add value to frame-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeFrameSrc, "remove-frame-src", "Remove value from frame-src directive (can be repeated, evaluated in order)")
+	flag.Var(addDefaultSrc, "add-default-src", "Add value to default-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeDefaultSrc, "remove-default-src", "Remove value from default-src directive (can be repeated, evaluated in order)")
+	flag.Var(addObjectSrc, "add-object-src", "Add value to object-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeObjectSrc, "remove-object-src", "Remove value from object-src directive (can be repeated, evaluated in order)")
+	flag.Var(addMediaSrc, "add-media-src", "Add value to media-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeMediaSrc, "remove-media-src", "Remove value from media-src directive (can be repeated, evaluated in order)")
+	flag.Var(addBaseURI, "add-base-uri", "Add value to base-uri directive (can be repeated, evaluated in order)")
+	flag.Var(removeBaseURI, "remove-base-uri", "Remove value from base-uri directive (can be repeated, evaluated in order)")
+	flag.Var(addFormAction, "add-form-action", "Add value to form-action directive (can be repeated, evaluated in order)")
+	flag.Var(removeFormAction, "remove-form-action", "Remove value from form-action directive (can be repeated, evaluated in order)")
+	flag.Var(addFrameAncestors, "add-frame-ancestors", "Add value to frame-ancestors directive (can be repeated, evaluated in order)")
+	flag.Var(removeFrameAncestors, "remove-frame-ancestors", "Remove value from frame-ancestors directive (can be repeated, evaluated in order)")
 
 	// Custom usage message
 	flag.Usage = func() {
@@ -319,6 +421,11 @@ func main() {
 	// Add external resource domains if requested
 	if *includeExternal && allExternalResources != nil {
 		updatedCSP = AddExternalResourcesToCSP(updatedCSP, allExternalResources)
+	}
+
+	// Apply any add/remove modifications in order
+	if len(modifications) > 0 {
+		updatedCSP = ApplyCSPModifications(updatedCSP, modifications)
 	}
 
 	// Validate output CSP (unless disabled)

@@ -187,3 +187,66 @@ func MergeStrictCSPWithHashes(strictCSP string, scriptHashes, styleTagHashes, st
 func AddExternalResourcesToStrictCSP(strictCSP string, resources *ExternalResources) string {
 	return AddExternalResourcesToCSP(strictCSP, resources)
 }
+
+// CSPModification represents an add or remove operation on a CSP directive
+type CSPModification struct {
+	Action    string // "add" or "remove"
+	Directive string // e.g., "script-src"
+	Value     string // e.g., "'self'"
+}
+
+// ApplyCSPModifications applies a series of add/remove operations to a CSP string in order
+func ApplyCSPModifications(cspString string, modifications []CSPModification) string {
+	if len(modifications) == 0 {
+		return cspString
+	}
+
+	directives := parseCSPDirectives(cspString)
+
+	for _, mod := range modifications {
+		directive := mod.Directive
+		value := strings.TrimSpace(mod.Value)
+
+		if directive == "" || value == "" {
+			continue
+		}
+
+		currentValue := directives[directive]
+		var values []string
+
+		if currentValue != "" {
+			values = strings.Fields(currentValue)
+		}
+
+		if mod.Action == "add" {
+			// Only add if not already present
+			found := false
+			for _, v := range values {
+				if v == value {
+					found = true
+					break
+				}
+			}
+			if !found {
+				values = append(values, value)
+			}
+		} else if mod.Action == "remove" {
+			// Remove the value
+			newValues := []string{}
+			for _, v := range values {
+				if v != value {
+					newValues = append(newValues, v)
+				}
+			}
+			values = newValues
+		}
+
+		if len(values) > 0 {
+			directives[directive] = strings.Join(values, " ")
+		} else {
+			delete(directives, directive)
+		}
+	}
+
+	return reconstructCSP(directives)
+}
