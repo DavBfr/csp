@@ -9,6 +9,7 @@ import (
 func main() {
 	// Define command-line flags
 	cspFlag := flag.String("csp", "", "Existing CSP header to update with hashes (required)")
+	hashAlgo := flag.String("hash-algo", "sha256", "Hash algorithm to use: sha256, sha384, or sha512")
 	noScripts := flag.Bool("no-scripts", false, "Skip processing inline <script> elements")
 	noStyles := flag.Bool("no-styles", false, "Skip processing inline <style> tags")
 	noInlineStyles := flag.Bool("no-inline-styles", false, "Skip processing inline style attributes")
@@ -23,6 +24,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nExamples:\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" index.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --no-scripts *.html\n")
+		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --hash-algo sha384 index.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --no-event-handlers index.html about.html\n")
 	}
 
@@ -32,6 +34,20 @@ func main() {
 	if *cspFlag == "" {
 		fmt.Fprintln(os.Stderr, "Error: --csp flag is required")
 		fmt.Fprintln(os.Stderr, "Usage: csp --csp \"CSP_HEADER\" [options] file1.html file2.html ...")
+		os.Exit(1)
+	}
+
+	// Validate hash algorithm
+	var algorithm HashAlgorithm
+	switch *hashAlgo {
+	case "sha256":
+		algorithm = SHA256
+	case "sha384":
+		algorithm = SHA384
+	case "sha512":
+		algorithm = SHA512
+	default:
+		fmt.Fprintf(os.Stderr, "Error: invalid hash algorithm '%s'. Must be sha256, sha384, or sha512\n", *hashAlgo)
 		os.Exit(1)
 	}
 
@@ -61,7 +77,7 @@ func main() {
 		// Compute hashes for scripts (unless disabled)
 		if !*noScripts {
 			for _, script := range scripts {
-				hash := ComputeSHA256Hash(script)
+				hash := ComputeHash(script, algorithm)
 				allScriptHashes = append(allScriptHashes, hash)
 			}
 		}
@@ -69,7 +85,7 @@ func main() {
 		// Compute hashes for style tags (unless disabled)
 		if !*noStyles {
 			for _, style := range styleTags {
-				hash := ComputeSHA256Hash(style)
+				hash := ComputeHash(style, algorithm)
 				allStyleTagHashes = append(allStyleTagHashes, hash)
 			}
 		}
@@ -77,7 +93,7 @@ func main() {
 		// Compute hashes for style attributes (unless disabled)
 		if !*noInlineStyles {
 			for _, style := range styleAttrs {
-				hash := ComputeSHA256Hash(style)
+				hash := ComputeHash(style, algorithm)
 				allStyleAttrHashes = append(allStyleAttrHashes, hash)
 			}
 		}
