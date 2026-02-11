@@ -17,6 +17,14 @@ type StrictCSPTemplate struct {
 	FrameSrc               []string
 	ObjectSrc              []string
 	MediaSrc               []string
+	ChildSrc               []string
+	ScriptSrcElem          []string
+	ScriptSrcAttr          []string
+	StyleSrcElem           []string
+	StyleSrcAttr           []string
+	Sandbox                []string
+	TrustedTypes           []string
+	ReportTo               []string
 	BaseURI                []string
 	FormAction             []string
 	FrameAncestors         []string
@@ -92,6 +100,38 @@ func GenerateStrictCSP(template StrictCSPTemplate) string {
 
 	if len(template.MediaSrc) > 0 {
 		parts = append(parts, "media-src "+strings.Join(template.MediaSrc, " "))
+	}
+
+	if len(template.ChildSrc) > 0 {
+		parts = append(parts, "child-src "+strings.Join(template.ChildSrc, " "))
+	}
+
+	if len(template.ScriptSrcElem) > 0 {
+		parts = append(parts, "script-src-elem "+strings.Join(template.ScriptSrcElem, " "))
+	}
+
+	if len(template.ScriptSrcAttr) > 0 {
+		parts = append(parts, "script-src-attr "+strings.Join(template.ScriptSrcAttr, " "))
+	}
+
+	if len(template.StyleSrcElem) > 0 {
+		parts = append(parts, "style-src-elem "+strings.Join(template.StyleSrcElem, " "))
+	}
+
+	if len(template.StyleSrcAttr) > 0 {
+		parts = append(parts, "style-src-attr "+strings.Join(template.StyleSrcAttr, " "))
+	}
+
+	if len(template.Sandbox) > 0 {
+		parts = append(parts, "sandbox "+strings.Join(template.Sandbox, " "))
+	}
+
+	if len(template.TrustedTypes) > 0 {
+		parts = append(parts, "trusted-types "+strings.Join(template.TrustedTypes, " "))
+	}
+
+	if len(template.ReportTo) > 0 {
+		parts = append(parts, "report-to "+strings.Join(template.ReportTo, " "))
 	}
 
 	if len(template.BaseURI) > 0 {

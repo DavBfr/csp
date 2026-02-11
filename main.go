@@ -95,6 +95,22 @@ func main() {
 	removeFormAction := &directiveFlag{directive: "form-action", action: "remove", modifications: &modifications}
 	addFrameAncestors := &directiveFlag{directive: "frame-ancestors", action: "add", modifications: &modifications}
 	removeFrameAncestors := &directiveFlag{directive: "frame-ancestors", action: "remove", modifications: &modifications}
+	addChildSrc := &directiveFlag{directive: "child-src", action: "add", modifications: &modifications}
+	removeChildSrc := &directiveFlag{directive: "child-src", action: "remove", modifications: &modifications}
+	addScriptSrcElem := &directiveFlag{directive: "script-src-elem", action: "add", modifications: &modifications}
+	removeScriptSrcElem := &directiveFlag{directive: "script-src-elem", action: "remove", modifications: &modifications}
+	addScriptSrcAttr := &directiveFlag{directive: "script-src-attr", action: "add", modifications: &modifications}
+	removeScriptSrcAttr := &directiveFlag{directive: "script-src-attr", action: "remove", modifications: &modifications}
+	addStyleSrcElem := &directiveFlag{directive: "style-src-elem", action: "add", modifications: &modifications}
+	removeStyleSrcElem := &directiveFlag{directive: "style-src-elem", action: "remove", modifications: &modifications}
+	addStyleSrcAttr := &directiveFlag{directive: "style-src-attr", action: "add", modifications: &modifications}
+	removeStyleSrcAttr := &directiveFlag{directive: "style-src-attr", action: "remove", modifications: &modifications}
+	addSandbox := &directiveFlag{directive: "sandbox", action: "add", modifications: &modifications}
+	removeSandbox := &directiveFlag{directive: "sandbox", action: "remove", modifications: &modifications}
+	addTrustedTypes := &directiveFlag{directive: "trusted-types", action: "add", modifications: &modifications}
+	removeTrustedTypes := &directiveFlag{directive: "trusted-types", action: "remove", modifications: &modifications}
+	addReportTo := &directiveFlag{directive: "report-to", action: "add", modifications: &modifications}
+	removeReportTo := &directiveFlag{directive: "report-to", action: "remove", modifications: &modifications}
 
 	// Register add/remove flags
 	flag.Var(addScriptSrc, "add-script-src", "Add value to script-src directive (can be repeated, evaluated in order)")
@@ -125,8 +141,22 @@ func main() {
 	flag.Var(removeFormAction, "remove-form-action", "Remove value from form-action directive (can be repeated, evaluated in order)")
 	flag.Var(addFrameAncestors, "add-frame-ancestors", "Add value to frame-ancestors directive (can be repeated, evaluated in order)")
 	flag.Var(removeFrameAncestors, "remove-frame-ancestors", "Remove value from frame-ancestors directive (can be repeated, evaluated in order)")
-
-	// Custom usage message
+	flag.Var(addChildSrc, "add-child-src", "Add value to child-src directive (can be repeated, evaluated in order)")
+	flag.Var(removeChildSrc, "remove-child-src", "Remove value from child-src directive (can be repeated, evaluated in order)")
+	flag.Var(addScriptSrcElem, "add-script-src-elem", "Add value to script-src-elem directive (can be repeated, evaluated in order)")
+	flag.Var(removeScriptSrcElem, "remove-script-src-elem", "Remove value from script-src-elem directive (can be repeated, evaluated in order)")
+	flag.Var(addScriptSrcAttr, "add-script-src-attr", "Add value to script-src-attr directive (can be repeated, evaluated in order)")
+	flag.Var(removeScriptSrcAttr, "remove-script-src-attr", "Remove value from script-src-attr directive (can be repeated, evaluated in order)")
+	flag.Var(addStyleSrcElem, "add-style-src-elem", "Add value to style-src-elem directive (can be repeated, evaluated in order)")
+	flag.Var(removeStyleSrcElem, "remove-style-src-elem", "Remove value from style-src-elem directive (can be repeated, evaluated in order)")
+	flag.Var(addStyleSrcAttr, "add-style-src-attr", "Add value to style-src-attr directive (can be repeated, evaluated in order)")
+	flag.Var(removeStyleSrcAttr, "remove-style-src-attr", "Remove value from style-src-attr directive (can be repeated, evaluated in order)")
+	flag.Var(addSandbox, "add-sandbox", "Add value to sandbox directive (can be repeated, evaluated in order)")
+	flag.Var(removeSandbox, "remove-sandbox", "Remove value from sandbox directive (can be repeated, evaluated in order)")
+	flag.Var(addTrustedTypes, "add-trusted-types", "Add value to trusted-types directive (can be repeated, evaluated in order)")
+	flag.Var(removeTrustedTypes, "remove-trusted-types", "Remove value from trusted-types directive (can be repeated, evaluated in order)")
+	flag.Var(addReportTo, "add-report-to", "Add value to report-to directive (can be repeated, evaluated in order)")
+	flag.Var(removeReportTo, "remove-report-to", "Remove value from report-to directive (can be repeated, evaluated in order)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: csp [options] file1.html [file2.html ...]\n\n")
 		fmt.Fprintf(os.Stderr, "Generate CSP hashes for inline content in HTML files.\n")
