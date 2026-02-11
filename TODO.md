@@ -38,28 +38,28 @@
 
 ### External Resource Detection
 
-- [ ] Scan for external scripts (src="...")
-- [ ] Scan for external stylesheets (href="...")
-- [ ] Extract domains from external resources
-- [ ] Add flag `--include-external` to add domains to CSP directives
-- [ ] Support for frame-src, img-src, font-src detection
+- [x] Scan for external scripts (src="...")
+- [x] Scan for external stylesheets (href="...")
+- [x] Extract domains from external resources
+- [x] Add flag `--include-external` to add domains to CSP directives
+- [x] Support for frame-src, img-src, font-src detection
 
 ### CSP Validation
 
 - [x] Validate CSP syntax before modifications
 - [x] Validate CSP syntax after modifications
 - [x] Warn about common misconfigurations:
-  - `'unsafe-inline'` used with hashes (hashes are ignored)
+  - `'unsafe-inline'` used wisth hashes (hashes are ignored)
   - `'unsafe-eval'` without necessity
   - Missing required directives
 - [x] Add `--validate-only` flag to just check CSP syntax
 
 ### Strict CSP Generator
 
-- [ ] Add `--generate-strict` flag
-- [ ] Generate a complete strict CSP from scratch
-- [ ] Include recommended base directives (default-src, etc.)
-- [ ] Option to start from a template rather than empty CSP
+- [x] Add `--generate-strict` flag
+- [x] Generate a complete strict CSP from scratch
+- [x] Include recommended base directives (default-src, etc.)
+- [x] Option to start from a template rather than empty CSP
 
 ## Lower Priority Features
 

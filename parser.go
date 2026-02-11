@@ -124,3 +124,178 @@ func extractTextContent(n *html.Node) string {
 
 	return content.String()
 }
+
+// ExtractExternalResources parses an HTML file and extracts external resource URLs
+func ExtractExternalResources(filePath string) (*ExternalResources, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	doc, err := html.Parse(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse HTML: %w", err)
+	}
+
+	resources := &ExternalResources{
+		Scripts:     []ExternalResource{},
+		Stylesheets: []ExternalResource{},
+		Images:      []ExternalResource{},
+		Fonts:       []ExternalResource{},
+		Frames:      []ExternalResource{},
+		Other:       []ExternalResource{},
+	}
+
+	var traverse func(*html.Node)
+	traverse = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			switch n.Data {
+			case "script":
+				// Look for external scripts (src attribute)
+				for _, attr := range n.Attr {
+					if attr.Key == "src" && attr.Val != "" {
+						domain := ExtractDomain(attr.Val)
+						resources.Scripts = append(resources.Scripts, ExternalResource{
+							Type:   "script",
+							URL:    attr.Val,
+							Domain: domain,
+						})
+					}
+				}
+			case "link":
+				// Look for stylesheets and fonts
+				relType := ""
+				href := ""
+				for _, attr := range n.Attr {
+					if attr.Key == "rel" {
+						relType = strings.ToLower(attr.Val)
+					}
+					if attr.Key == "href" {
+						href = attr.Val
+					}
+				}
+				if href != "" {
+					if strings.Contains(relType, "stylesheet") {
+						domain := ExtractDomain(href)
+						resources.Stylesheets = append(resources.Stylesheets, ExternalResource{
+							Type:   "stylesheet",
+							URL:    href,
+							Domain: domain,
+						})
+					} else if strings.Contains(relType, "font") || strings.Contains(relType, "preload") {
+						// Check if it's a font preload
+						for _, attr := range n.Attr {
+							if attr.Key == "as" && attr.Val == "font" {
+								domain := ExtractDomain(href)
+								resources.Fonts = append(resources.Fonts, ExternalResource{
+									Type:   "font",
+									URL:    href,
+									Domain: domain,
+								})
+								break
+							}
+						}
+					}
+				}
+			case "img":
+				// Look for images
+				for _, attr := range n.Attr {
+					if attr.Key == "src" && attr.Val != "" {
+						domain := ExtractDomain(attr.Val)
+						resources.Images = append(resources.Images, ExternalResource{
+							Type:   "image",
+							URL:    attr.Val,
+							Domain: domain,
+						})
+					}
+				}
+			case "iframe":
+				// Look for frames
+				for _, attr := range n.Attr {
+					if attr.Key == "src" && attr.Val != "" {
+						domain := ExtractDomain(attr.Val)
+						resources.Frames = append(resources.Frames, ExternalResource{
+							Type:   "frame",
+							URL:    attr.Val,
+							Domain: domain,
+						})
+					}
+				}
+			}
+
+			// Check for style attributes with @import or url()
+			for _, attr := range n.Attr {
+				if strings.EqualFold(attr.Key, "style") {
+					// Parse CSS for external resources
+					extractCSSURLs(attr.Val, resources)
+				}
+			}
+		}
+
+		// Traverse children
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			traverse(c)
+		}
+	}
+
+	traverse(doc)
+	return resources, nil
+}
+
+// extractCSSURLs extracts URLs from CSS content
+func extractCSSURLs(cssContent string, resources *ExternalResources) {
+	// Simple regex-like parsing for url() and @import
+	// This is a basic implementation; a full CSS parser would be more robust
+
+	// Look for url(...) patterns
+	start := 0
+	for {
+		idx := strings.Index(cssContent[start:], "url(")
+		if idx == -1 {
+			break
+		}
+		idx += start + 4
+
+		// Find closing parenthesis
+		end := strings.Index(cssContent[idx:], ")")
+		if end == -1 {
+			break
+		}
+		end += idx
+
+		urlStr := strings.TrimSpace(cssContent[idx:end])
+		urlStr = strings.Trim(urlStr, "\"'")
+
+		if urlStr != "" {
+			domain := ExtractDomain(urlStr)
+			// Try to determine if it's a font based on extension
+			lowerURL := strings.ToLower(urlStr)
+			if strings.HasSuffix(lowerURL, ".woff") || strings.HasSuffix(lowerURL, ".woff2") ||
+				strings.HasSuffix(lowerURL, ".ttf") || strings.HasSuffix(lowerURL, ".otf") ||
+				strings.HasSuffix(lowerURL, ".eot") {
+				resources.Fonts = append(resources.Fonts, ExternalResource{
+					Type:   "font",
+					URL:    urlStr,
+					Domain: domain,
+				})
+			} else if strings.HasSuffix(lowerURL, ".jpg") || strings.HasSuffix(lowerURL, ".jpeg") ||
+				strings.HasSuffix(lowerURL, ".png") || strings.HasSuffix(lowerURL, ".gif") ||
+				strings.HasSuffix(lowerURL, ".svg") || strings.HasSuffix(lowerURL, ".webp") {
+				resources.Images = append(resources.Images, ExternalResource{
+					Type:   "image",
+					URL:    urlStr,
+					Domain: domain,
+				})
+			} else {
+				resources.Other = append(resources.Other, ExternalResource{
+					Type:   "other",
+					URL:    urlStr,
+					Domain: domain,
+				})
+			}
+		}
+
+		start = end + 1
+	}
+}
