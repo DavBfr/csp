@@ -183,6 +183,18 @@ func AddExternalResourcesToCSP(cspHeader string, resources *ExternalResources) s
 		}
 	}
 
+	// Add connect-src domains (from "other" type)
+	connectDomains := resources.GetDomainsByType("other")
+	if len(connectDomains) > 0 {
+		if existing, ok := directives["connect-src"]; ok {
+			directives["connect-src"] = appendUniqueDomainsToString(existing, connectDomains)
+		} else if defaultSrc, ok := directives["default-src"]; ok {
+			directives["connect-src"] = appendUniqueDomainsToString(defaultSrc, connectDomains)
+		} else {
+			directives["connect-src"] = strings.Join(connectDomains, " ")
+		}
+	}
+
 	return reconstructCSP(directives)
 }
 

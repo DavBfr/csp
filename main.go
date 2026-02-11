@@ -18,6 +18,7 @@ func main() {
 	noInlineStyles := flag.Bool("no-inline-styles", false, "Skip processing inline style attributes")
 	noEventHandlers := flag.Bool("no-event-handlers", false, "Skip processing inline event handlers (onclick, etc.)")
 	includeExternal := flag.Bool("include-external", false, "Scan for external resources and add domains to CSP directives")
+	useHeuristics := flag.Bool("heuristics", false, "Use heuristics to infer additional external resources (e.g., fonts loaded by stylesheets)")
 	generateStrict := flag.Bool("generate-strict", false, "Generate a complete strict CSP from scratch")
 	verbose := flag.Bool("verbose", false, "Show detailed information about hash generation")
 	verboseShort := flag.Bool("v", false, "Show detailed information about hash generation (short)")
@@ -38,6 +39,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --no-event-handlers index.html about.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --generate-strict index.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --include-external index.html\n")
+		fmt.Fprintf(os.Stderr, "  csp --include-external --heuristics index.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" -v index.html\n")
 	}
 
@@ -127,6 +129,7 @@ func main() {
 
 	// Collect external resources if requested
 	var allExternalResources *ExternalResources
+	var allHeuristicResources []HeuristicResource
 	if *includeExternal {
 		allExternalResources = &ExternalResources{
 			Scripts:     []ExternalResource{},
@@ -216,6 +219,39 @@ func main() {
 		}
 	}
 
+	// Apply heuristics if requested
+	if *includeExternal && *useHeuristics && allExternalResources != nil {
+		// Collect all external resources into a flat list for heuristics
+		var allResources []ExternalResource
+		allResources = append(allResources, allExternalResources.Scripts...)
+		allResources = append(allResources, allExternalResources.Stylesheets...)
+		allResources = append(allResources, allExternalResources.Images...)
+		allResources = append(allResources, allExternalResources.Fonts...)
+		allResources = append(allResources, allExternalResources.Frames...)
+
+		// Apply heuristics
+		allHeuristicResources = ApplyHeuristics(allResources)
+
+		// Convert heuristic resources back to external resources and merge
+		for _, h := range allHeuristicResources {
+			externalRes := ConvertHeuristicToExternalResource(h)
+			switch h.Type {
+			case "script":
+				allExternalResources.Scripts = append(allExternalResources.Scripts, externalRes)
+			case "stylesheet":
+				allExternalResources.Stylesheets = append(allExternalResources.Stylesheets, externalRes)
+			case "image":
+				allExternalResources.Images = append(allExternalResources.Images, externalRes)
+			case "font":
+				allExternalResources.Fonts = append(allExternalResources.Fonts, externalRes)
+			case "frame":
+				allExternalResources.Frames = append(allExternalResources.Frames, externalRes)
+			case "connect":
+				allExternalResources.Other = append(allExternalResources.Other, externalRes)
+			}
+		}
+	}
+
 	// Remove duplicate hashes
 	allScriptHashes = removeDuplicates(allScriptHashes)
 	allStyleTagHashes = removeDuplicates(allStyleTagHashes)
@@ -229,6 +265,28 @@ func main() {
 		if *includeExternal && allExternalResources != nil {
 			verboseOut.SetExternalResources(allExternalResources)
 			verboseOut.PrintExternalResources()
+
+			// Print heuristic inferences if they were used
+			if *useHeuristics && len(allHeuristicResources) > 0 {
+				fmt.Fprintln(os.Stderr, "\nInferred Resources (from heuristics):")
+				fmt.Fprintln(os.Stderr, "================================================================================")
+				for _, h := range allHeuristicResources {
+					fmt.Fprintf(os.Stderr, "  [%s] %s\n", strings.ToUpper(h.Confidence), h.URL)
+					fmt.Fprintf(os.Stderr, "      Type: %s\n", h.Type)
+					fmt.Fprintf(os.Stderr, "      Reason: %s\n", h.Reason)
+					fmt.Fprintf(os.Stderr, "      Source: %s (%s)\n", h.SourceURL, h.SourceType)
+					fmt.Fprintln(os.Stderr)
+				}
+				summary := GetHeuristicsSummary(allHeuristicResources)
+				fmt.Fprintf(os.Stderr, "Total inferred: %d resources\n", len(allHeuristicResources))
+				for key, count := range summary {
+					if !strings.HasPrefix(key, "confidence_") {
+						fmt.Fprintf(os.Stderr, "  - %s: %d\n", key, count)
+					}
+				}
+				fmt.Fprintf(os.Stderr, "Confidence levels: High=%d, Medium=%d, Low=%d\n\n",
+					summary["confidence_high"], summary["confidence_medium"], summary["confidence_low"])
+			}
 		}
 
 		verboseOut.PrintSummary(totalScripts, totalStyleTags, totalStyleAttrs,
