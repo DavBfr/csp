@@ -20,6 +20,7 @@ func main() {
 	includeExternal := flag.Bool("include-external", false, "Scan for external resources and add domains to CSP directives")
 	useHeuristics := flag.Bool("heuristics", false, "Use heuristics to infer additional external resources (e.g., fonts loaded by stylesheets)")
 	generateStrict := flag.Bool("generate-strict", false, "Generate a complete strict CSP from scratch")
+	requireTrustedTypes := flag.Bool("require-trusted-types", false, "Add require-trusted-types-for 'script' directive (requires Trusted Types API support)")
 	verbose := flag.Bool("verbose", false, "Show detailed information about hash generation")
 	verboseShort := flag.Bool("v", false, "Show detailed information about hash generation (short)")
 
@@ -108,6 +109,7 @@ func main() {
 	if *generateStrict {
 		// Generate a strict CSP from the default template
 		template := GetDefaultStrictTemplate()
+		template.RequireTrustedTypesFor = *requireTrustedTypes
 		baseCSP = GenerateStrictCSP(template)
 	} else {
 		baseCSP = *cspFlag

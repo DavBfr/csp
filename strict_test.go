@@ -183,3 +183,39 @@ func TestAddExternalResourcesToStrictCSP(t *testing.T) {
 		t.Error("Updated strict CSP should contain https://cdn.example.com")
 	}
 }
+
+func TestGenerateStrictCSPWithRequireTrustedTypes(t *testing.T) {
+	template := StrictCSPTemplate{
+		DefaultSrc:             []string{"'self'"},
+		ScriptSrc:              []string{"'self'"},
+		RequireTrustedTypesFor: true,
+	}
+
+	csp := GenerateStrictCSP(template)
+
+	if !strings.Contains(csp, "require-trusted-types-for 'script'") {
+		t.Error("Generated CSP should contain require-trusted-types-for 'script'")
+	}
+}
+
+func TestGenerateStrictCSPWithoutRequireTrustedTypes(t *testing.T) {
+	template := StrictCSPTemplate{
+		DefaultSrc:             []string{"'self'"},
+		ScriptSrc:              []string{"'self'"},
+		RequireTrustedTypesFor: false,
+	}
+
+	csp := GenerateStrictCSP(template)
+
+	if strings.Contains(csp, "require-trusted-types-for") {
+		t.Error("Generated CSP should not contain require-trusted-types-for when disabled")
+	}
+}
+
+func TestDefaultTemplateDoesNotRequireTrustedTypes(t *testing.T) {
+	template := GetDefaultStrictTemplate()
+
+	if template.RequireTrustedTypesFor {
+		t.Error("Default template should not enable require-trusted-types-for by default")
+	}
+}

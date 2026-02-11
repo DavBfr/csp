@@ -6,21 +6,22 @@ import (
 
 // StrictCSPTemplate defines the structure of a strict CSP policy
 type StrictCSPTemplate struct {
-	DefaultSrc      []string
-	ScriptSrc       []string
-	StyleSrc        []string
-	ImgSrc          []string
-	FontSrc         []string
-	ConnectSrc      []string
-	ManifestSrc     []string
-	WorkerSrc       []string
-	FrameSrc        []string
-	ObjectSrc       []string
-	MediaSrc        []string
-	BaseURI         []string
-	FormAction      []string
-	FrameAncestors  []string
-	UpgradeInsecure bool
+	DefaultSrc             []string
+	ScriptSrc              []string
+	StyleSrc               []string
+	ImgSrc                 []string
+	FontSrc                []string
+	ConnectSrc             []string
+	ManifestSrc            []string
+	WorkerSrc              []string
+	FrameSrc               []string
+	ObjectSrc              []string
+	MediaSrc               []string
+	BaseURI                []string
+	FormAction             []string
+	FrameAncestors         []string
+	UpgradeInsecure        bool
+	RequireTrustedTypesFor bool
 }
 
 // GetDefaultStrictTemplate returns a recommended strict CSP template
@@ -103,6 +104,10 @@ func GenerateStrictCSP(template StrictCSPTemplate) string {
 
 	if len(template.FrameAncestors) > 0 {
 		parts = append(parts, "frame-ancestors "+strings.Join(template.FrameAncestors, " "))
+	}
+
+	if template.RequireTrustedTypesFor {
+		parts = append(parts, "require-trusted-types-for 'script'")
 	}
 
 	if template.UpgradeInsecure {
