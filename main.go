@@ -10,6 +10,8 @@ func main() {
 	// Define command-line flags
 	cspFlag := flag.String("csp", "", "Existing CSP header to update with hashes (required)")
 	hashAlgo := flag.String("hash-algo", "sha256", "Hash algorithm to use: sha256, sha384, or sha512")
+	validateOnly := flag.Bool("validate-only", false, "Only validate the CSP without processing HTML files")
+	noValidate := flag.Bool("no-validate", false, "Skip CSP validation checks")
 	noScripts := flag.Bool("no-scripts", false, "Skip processing inline <script> elements")
 	noStyles := flag.Bool("no-styles", false, "Skip processing inline <style> tags")
 	noInlineStyles := flag.Bool("no-inline-styles", false, "Skip processing inline style attributes")
@@ -25,6 +27,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" index.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --no-scripts *.html\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --hash-algo sha384 index.html\n")
+		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --validate-only\n")
 		fmt.Fprintf(os.Stderr, "  csp --csp \"default-src 'self'\" --no-event-handlers index.html about.html\n")
 	}
 
@@ -49,6 +52,28 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "Error: invalid hash algorithm '%s'. Must be sha256, sha384, or sha512\n", *hashAlgo)
 		os.Exit(1)
+	}
+
+	// Handle validate-only mode
+	if *validateOnly {
+		result := ValidateCSP(*cspFlag)
+		PrintValidationResult(result, true)
+		if !result.Valid {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// Validate input CSP before processing (unless disabled)
+	if !*noValidate {
+		result := ValidateCSP(*cspFlag)
+		if !result.Valid {
+			fmt.Fprintln(os.Stderr, "Input CSP validation failed:")
+			PrintValidationResult(result, false)
+			fmt.Fprintln(os.Stderr, "\nContinuing anyway...")
+		} else if len(result.Warnings) > 0 {
+			fmt.Fprintf(os.Stderr, "Input CSP has %d warning(s). Use --validate-only for details.\n\n", len(result.Warnings))
+		}
 	}
 
 	htmlFiles := flag.Args()
@@ -109,6 +134,14 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error updating CSP: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Validate output CSP (unless disabled)
+	if !*noValidate {
+		result := ValidateCSP(updatedCSP)
+		if len(result.Warnings) > 0 {
+			fmt.Fprintf(os.Stderr, "Output CSP has %d warning(s). Use --validate-only to check.\n\n", len(result.Warnings))
+		}
 	}
 
 	// Output the updated CSP header

@@ -46,13 +46,13 @@
 
 ### CSP Validation
 
-- [ ] Validate CSP syntax before modifications
-- [ ] Validate CSP syntax after modifications
-- [ ] Warn about common misconfigurations:
+- [x] Validate CSP syntax before modifications
+- [x] Validate CSP syntax after modifications
+- [x] Warn about common misconfigurations:
   - `'unsafe-inline'` used with hashes (hashes are ignored)
   - `'unsafe-eval'` without necessity
   - Missing required directives
-- [ ] Add `--validate-only` flag to just check CSP syntax
+- [x] Add `--validate-only` flag to just check CSP syntax
 
 ### Strict CSP Generator
 
